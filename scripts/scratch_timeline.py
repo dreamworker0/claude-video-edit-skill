@@ -11,6 +11,9 @@ Usage:
   moves to the other corner only when the screen under it is busy and the other corner is clearly emptier
   (with hysteresis, so it does not jump back and forth). --no-auto-side keeps it on the right.
 * A1 = camera audio.  --mosaic: {clip_index: mosaic dict} from privacy_masks.py.
+* decisions["intro"] / ["outro"]: cover image OR video over the first / last N seconds (see below);
+  decisions["camera_side"]: force the camera corner in edit-time ranges;
+  decisions["skip_screen_frames"]: start a screen piece a few frames later (black frames at a cut).
 """
 import argparse, json, os, subprocess
 from concurrent.futures import ThreadPoolExecutor
@@ -97,6 +100,16 @@ else:
                 side = 'L' if side == 'R' else 'R'
         sides.append(side)
 
+# decisions["camera_side"] = [[from_s, to_s, "L"|"R"], ...] in EDIT time: force the camera corner for every clip that
+# overlaps the range - e.g. under an intro/outro video whose own cards pop up bottom-right, the busy test can't see that
+edit_at = 0.0
+for i, c in enumerate(clips):
+    n_ = round((c['e'] - c['s']) * FPS) / FPS
+    for lo, hi, sd in dec.get('camera_side', []):
+        if edit_at < hi and edit_at + n_ > lo:
+            sides[i] = sd
+    edit_at += n_
+
 # key colour: median of strongly green (or blue) pixels in a camera frame
 def key_rgb(cam):
     raw = subprocess.run(['ffmpeg', '-v', 'error', '-ss', '30', '-i', os.path.join(a.media, cam), '-frames:v', '1',
@@ -175,7 +188,20 @@ for i, c in enumerate(clips):
     a1.append(item(c['cam'], st, en, cin))
     pos += n
 
+# decisions["skip_screen_frames"] = [{"at": screen_s, "frames": n}, ...]: the screen piece that starts at screen-file
+# time `at` starts n frames later - for black/blank frames recorded while a tab or page opened right at a cut
+# (find them with black_frames.py). Only the picture moves; the voice stays where it is.
+screens = {c['scr'] for c in clips}
+for sk in dec.get('skip_screen_frames', []):
+    hit = [c for c in v1 if c['file'] in screens and abs(c['in'] / T - sk['at']) < 0.1]
+    if not hit:
+        print(f"WARNING skip_screen_frames: no screen piece starts at {sk['at']}s")
+    for c in hit:
+        c['in'] += sk['frames'] * F
+        c['out'] += sk['frames'] * F
+
 # cover images over the first / last N seconds: decisions["intro"] / ["outro"] = {"image": "cover.png", "seconds": 5}.
+# "image" may also be a video (e.g. a motion title rendered to the same length).
 # The camera and voice keep playing on top (the user's own style); only the background is replaced.
 def cover(spec, lo, hi):
     out = []
@@ -185,7 +211,7 @@ def cover(spec, lo, hi):
             out.append(c); continue
         if a_ < lo:
             out.append(dict(c, end=lo, out=c['in'] + lo - a_))
-        out.append(item(spec['image'], max(a_, lo), min(b_, hi), 0))
+        out.append(item(spec['image'], max(a_, lo), min(b_, hi), max(a_, lo) - lo))   # a video cover plays on across cuts
         if b_ > hi:
             off = hi - a_
             out.append(dict(c, start=hi, **{'in': c['in'] + round(off * (c.get('speed') or 1.0))}))

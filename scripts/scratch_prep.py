@@ -71,7 +71,8 @@ pj = os.path.join(a.work, 'project.json')
 if os.path.exists(pj):
     proj = json.load(open(pj, encoding='utf-8'))
 else:
-    vids = sorted(f for f in glob.glob(os.path.join(a.media, '*.mp4')) if not os.path.basename(f).startswith('Claude'))
+    vids = sorted(f for ext in ('mp4', 'mkv', 'mov') for f in glob.glob(os.path.join(a.media, f'*.{ext}'))
+                  if not os.path.basename(f).startswith('Claude'))
     info = {f: probe(f) for f in vids}
     pairs = []
     if a.pair:

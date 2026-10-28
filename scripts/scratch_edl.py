@@ -13,8 +13,9 @@ decisions.json
                                                # (from the quietest point of a to the quietest of b); list = several ops
     }
   },
-  "pre": 0.10, "post": 0.22, "merge_gap": 0.55 # padding around speech; neighbours closer than merge_gap stay one clip
-}
+  "pre": 0.18, "post": 0.22, "merge_gap": 0.55,# padding around speech; neighbours closer than merge_gap stay one clip
+  "tail": 1.2                                  # optional: extend the LAST clip by up to N s of what follows (room for
+}                                              # finish.py's fade-out after the last word instead of over it)
 Instead of "files", "sequence": [{"cam": "<stem>", "keep": [...], "trim": {...}}, ...] plays blocks in the
 given order; the same file may appear in several blocks (e.g. a summary recorded last, used as the opening hook).
 --check   transcribes the whole rough cut and prints it with mm:ss and clip numbers - read it like a viewer would
@@ -33,7 +34,8 @@ SR = 16000
 proj = json.load(open(os.path.join(a.work, 'project.json'), encoding='utf-8'))
 units = json.load(open(os.path.join(a.work, 'units.json'), encoding='utf-8'))
 dec = json.load(open(a.decisions, encoding='utf-8'))
-PRE, POST, MERGE = dec.get('pre', 0.10), dec.get('post', 0.22), dec.get('merge_gap', 0.55)
+# pre 0.10 clipped first syllables whose onset sits right at the unit edge ("구글 문서", "설정에"); 0.18 did not
+PRE, POST, MERGE = dec.get('pre', 0.18), dec.get('post', 0.22), dec.get('merge_gap', 0.55)
 stem = lambda f: os.path.splitext(os.path.basename(f))[0]
 
 def expand(keep):
@@ -98,6 +100,10 @@ for k, d in blocks:
             merged.append([u, s, e])
     for u, s, e in merged:
         clips.append({'cam': p['cam'], 'scr': p['scr'], 'lag': p['lag'], 's': round(max(0.0, s), 3), 'e': round(e, 3)})
+
+if dec.get('tail') and clips:                            # room after the last word (for the fade-out)
+    c = clips[-1]
+    c['e'] = round(min(len(load(stem(c['cam']))) / SR, c['e'] + float(dec['tail'])), 3)
 
 json.dump(clips, open(os.path.join(a.work, 'edl.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 tot = sum(c['e'] - c['s'] for c in clips)
