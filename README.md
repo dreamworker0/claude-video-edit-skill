@@ -7,7 +7,8 @@
   화질(PSNR)·소리 싱크를 비교합니다.
 - **B. 원본 녹화로 처음부터 편집**: 화면 녹화 + 그린스크린 카메라 원본을 음성 인식으로 받아써서, 다시 말한 부분·끊긴
   문장·군소리·긴 침묵을 자르고, 카메라를 키잉해 얹고, 표지·핸드폰 녹화(B-roll)를 넣고, 화면 속 개인정보를
-  모자이크하고, 결과를 다시 받아써서 확인합니다.
+  모자이크하고, 결과를 다시 받아써서 확인합니다. 소개 말 동안 홍보 영상을 까는 오프닝·마무리, 소리 크기 맞춤과
+  끝 페이드 아웃까지 합니다. OBS의 mkv 녹화도 그대로 씁니다.
 
 Claude에게 "이 프리미어 프로젝트 분석해서 다시 렌더링해줘", "원본만 가지고 편집해줘", "말 반복한 거 잘라줘"처럼
 말하면 스킬이 쓰입니다.
@@ -36,7 +37,9 @@ Windows에서는 `C:\Users\<이름>\.claude\skills\premiere-ffmpeg-render`에 �
 | `scripts/verify.py` | 원본과 프레임 수·PSNR·소리 싱크 비교 |
 | `scripts/scratch_prep.py` | 원본 짝 맞추기·싱크·말 덩어리·음성 인식 |
 | `scripts/scratch_edl.py` | 편집 결정 → 클립 목록 + 다시 받아쓰기 확인 |
-| `scripts/scratch_timeline.py` | 표지·B-roll·카메라 배치·모자이크를 넣은 타임라인 |
+| `scripts/scratch_timeline.py` | 표지(이미지·영상)·B-roll·카메라 배치·모자이크를 넣은 타임라인 |
+| `scripts/finish.py` | 완성본: 소리 크기 맞춤(−16 LUFS) 뒤 끝 페이드 아웃 |
+| `scripts/black_frames.py` | 완성본에서 짧게 검게 바뀌는 프레임 찾기 |
 | `scripts/privacy_review.py`, `privacy_masks.py` | 개인정보 확인용 장면 모음, 모자이크 영역 |
 | `references/editing_from_raw.md` | 무엇을 자를지 판단 기준과 함정 |
 | `references/editing_profile.md` | **편집 습관 프로필** — 자기 스타일로 바꿔 쓰세요 |

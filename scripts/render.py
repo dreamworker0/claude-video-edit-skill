@@ -6,8 +6,9 @@ Usage:
 
 How it works
   * The sequence is cut into segments where the set of clips on every video track is constant.
-    Each segment is one ffmpeg run, cached in work_dir under a name derived from what it shows (sources,
-    source times, effects, encoder settings), so after a partial edit only changed segments re-render. Then all
+    Each segment is one ffmpeg run, cached in work_dir under a name derived from what it shows (sources and
+    their size/mtime, source times, effects, encoder settings), so after a partial edit only changed segments
+    re-render. Then all
     segments are joined with the concat demuxer (no re-encode) and muxed with the audio.
   * Video tracks are composited bottom (V1) to top. Per clip: Crop -> Motion (scale/position/anchor)
     -> green/blue key (approximation of Ultra Key) -> overlay.
@@ -120,7 +121,9 @@ while f < N:
 
 def seg_name(seg):
     """Cache name from what the segment SHOWS (sources, source times, effects, encoder settings), not from
-    its position: after cutting or inserting a clip, unchanged segments are reused and changed ones re-rendered."""
+    its position: after cutting or inserting a clip, unchanged segments are reused and changed ones re-rendered.
+    Each source's size and modification time are part of it, so a cover video or title image re-made under the
+    same file name is picked up instead of the stale cached segment."""
     layers = []
     for c in seg['layers']:
         if c is None:
@@ -131,8 +134,10 @@ def seg_name(seg):
             src = ('freeze', c['in'])
         else:
             src = round(src_time(c, seg['fs']), 4)
-        layers.append([media(c), src, c.get('speed'), c.get('motion'), c.get('crop'), c.get('key'), c.get('mosaic')])
-    spec = ['v2', seg['fe'] - seg['fs'], W, H, RATE, a.crf, a.preset, a.key_threshold, a.key_softness, a.despill, layers]
+        st = os.stat(media(c))
+        layers.append([media(c), st.st_size, int(st.st_mtime), src, c.get('speed'), c.get('motion'), c.get('crop'),
+                       c.get('key'), c.get('mosaic')])
+    spec = ['v3', seg['fe'] - seg['fs'], W, H, RATE, a.crf, a.preset, a.key_threshold, a.key_softness, a.despill, layers]
     return 'seg_' + hashlib.sha1(json.dumps(spec, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
 
 
